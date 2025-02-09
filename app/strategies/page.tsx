@@ -1,52 +1,115 @@
-// app/strategies/page.tsx
 "use client";
-import Link from "next/link";
+import StrategyCard from "../components/StrategyCard";
+import { useTradingAlgo } from "../hooks/useTradingAlgo";
+import { useEffect, useState } from "react";
 
-// 假資料
-const strategies = [
+type Strategy = {
+  id: number;
+  uid: string;
+  owner: string;
+  name: string;
+  subscriptionFee: number;
+  subscriberCount: number;
+  subscriptionPeriod: string;
+  profitability: number;
+  risk: number;
+  ROI: number;
+  status: string;
+};
+
+const mockStrategies = [
   {
-    id: 1,
+    id: 1000,
+    uid: "f732e251-da78-44ef-88ec-31b5729f859f",
+    owner: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     name: "Golden Cross Strategy",
-    owner: "Alice Smith",
-    ownerId: "alice123",
-    monthlyReturn: 30.5,
-    subscribers: 1200,
-    winRate: 78,
-    riskScore: 7.8,
-    fee: 149,
+    subscriptionFee: 50,
+    subscriberCount: 1200,
+    subscriptionPeriod: "month",
+    profitability: 30.5,
+    risk: 5.0,
+    ROI: 12.3,
     status: "High Profit",
   },
   {
-    id: 3,
-    name: "AI Trend Prediction",
-    owner: "Charlie Lee",
-    ownerId: "charlie789",
-    monthlyReturn: 1.8,
-    subscribers: 2300,
-    winRate: 89,
-    riskScore: 2.3,
-    fee: 299,
-    status: "Hot",
+    id: 1001,
+    uid: "b8d7e251-da78-44ef-88ec-31b5729f859g",
+    owner: "0x71bE63f3384f5fb98995898A86B02Fb2426c5788",
+    name: "MACD Strategy",
+    subscriptionFee: 7,
+    subscriberCount: 800,
+    subscriptionPeriod: "week",
+    profitability: 25.5,
+    risk: 9.2,
+    ROI: 10.3,
+    status: "High Risk",
   },
   {
-    id: 2,
-    name: "Momentum Scalping",
-    owner: "Bob Johnson",
-    ownerId: "bob456",
-    monthlyReturn: -4.2,
-    subscribers: 850,
-    winRate: 42,
-    riskScore: 9.1,
-    fee: 99,
-    status: "High Risk",
+    id: 1002,
+    uid: "a8d7e251-da78-44ef-88ec-31b5729f859k",
+    owner: "0xFABB0ac9d68B0B445fB7357272Ff202C5651694a",
+    name: "RSI Strategy",
+    subscriptionFee: 2,
+    subscriberCount: 2000,
+    subscriptionPeriod: "day",
+    profitability: 4.5,
+    risk: 1.0,
+    ROI: 8.3,
+    status: "HOT",
   },
 ];
 
 export default function StrategiesPage() {
+  const [strategies, setStrategies] = useState<Strategy[]>(mockStrategies);
+  const [loading, setLoading] = useState<boolean>(true);
+  const { getAllStrategies, isContractReady } = useTradingAlgo();
+
+  useEffect(() => {
+    const fetchStrategies = async () => {
+      try {
+        if (isContractReady) {
+          const result = await getAllStrategies();
+          console.log("Fetched strategies:", result);
+          // This is for demo purposes only
+          // TODO: Remove mock data and use real data from the contract
+          setStrategies((prev) => {
+            // 避免重複添加相同的策略
+            const mergedStrategies = [...prev, ...result].filter(
+              (value, index, self) =>
+                index === self.findIndex((s) => s.uid === value.uid)
+            );
+
+            return mergedStrategies;
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch strategies:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStrategies();
+  }, [isContractReady, getAllStrategies]);
+
+  const handleSubscribe = (id: number) => {
+    console.log(`Subscribing to strategy ${id}`);
+  };
+
+  // 如果合約還沒準備好，顯示載入中
+  if (!isContractReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center text-gray-500">
+          Initializing contract...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 py-16">
       <div className="max-w-7xl mx-auto px-4">
-        {/* Header Section */}
         <div className="text-center mb-16">
           <h1 className="text-4xl font-bold mb-4">Top Trading Strategies</h1>
           <p className="text-gray-600 text-xl">
@@ -54,7 +117,6 @@ export default function StrategiesPage() {
           </p>
         </div>
 
-        {/* Filter Section */}
         <div className="mb-10 flex gap-4 flex-wrap">
           <select className="bg-white px-4 py-2 rounded-lg border">
             <option>Sort by Return</option>
@@ -68,98 +130,22 @@ export default function StrategiesPage() {
           />
         </div>
 
-        {/* Strategy Cards Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {strategies.map((strategy) => (
-            <div
-              key={strategy.id}
-              className="bg-white rounded-2xl shadow-lg overflow-hidden"
-            >
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">
-                      {strategy.name}
-                    </h3>
-                    <Link
-                      href={`/user/${strategy.ownerId}`}
-                      className="text-gray-600 hover:text-indigo-600"
-                    >
-                      By {strategy.owner}
-                    </Link>
-                  </div>
-                  <span
-                    className={classNames(
-                      strategy.status === "High Profit"
-                        ? "bg-green-100 text-green-800"
-                        : strategy.status === "High Risk"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-blue-100 text-blue-800",
-                      "text-sm font-medium px-3 py-1 rounded-full"
-                    )}
-                  >
-                    {strategy.status}
-                  </span>
-                </div>
-
-                {/* Performance Metrics */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm text-gray-500">Monthly Return</p>
-                    <p
-                      className={`text-2xl font-bold ${
-                        strategy.monthlyReturn < 0
-                          ? "text-red-600"
-                          : "text-green-600"
-                      }`}
-                    >
-                      {strategy.monthlyReturn}%
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm text-gray-500">Subscribers</p>
-                    <p className="text-2xl font-bold">
-                      {strategy.subscribers.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm text-gray-500">Win Rate</p>
-                    <p className="text-2xl font-bold">{strategy.winRate}%</p>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm text-gray-500">Risk Score</p>
-                    <p
-                      className={`text-2xl font-bold ${
-                        strategy.riskScore >= 7 ? "text-red-600" : ""
-                      }`}
-                    >
-                      {strategy.riskScore}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Subscription Price */}
-                <div className="flex justify-between items-center mb-6">
-                  <div>
-                    <p className="text-sm text-gray-500">Subscription Fee</p>
-                    <p className="text-2xl font-bold">
-                      ${strategy.fee}{" "}
-                      <span className="text-sm text-gray-500">/ month</span>
-                    </p>
-                  </div>
-                  <button className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800">
-                    Subscribe
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-center text-gray-500">Loading strategies...</div>
+        ) : strategies.length === 0 ? (
+          <div className="text-center text-gray-500">No strategies found.</div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {strategies.map((strategy) => (
+              <StrategyCard
+                key={strategy.uid}
+                strategy={strategy}
+                onSubscribe={handleSubscribe}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </main>
   );
-}
-
-function classNames(...classes: string[]) {
-  return classes.filter(Boolean).join(" ");
 }
