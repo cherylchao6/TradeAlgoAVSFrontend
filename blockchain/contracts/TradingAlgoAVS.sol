@@ -13,10 +13,12 @@ contract TradingAlgoAVS {
         uint256 profitability; // 獲利能力
         uint256 risk; // 風險數值
         bool active; // 是否啟用
+        uint256 subscriberCount; // 訂閱人數
     }
 
     uint256 private nextStrategyId;
     mapping(uint256 => Strategy) public strategies;
+    mapping(uint256 => mapping(address => bool)) public subscriptions; // 記錄誰訂閱了哪個策略
 
     event StrategyCreated(
         uint256 indexed strategyId,
@@ -29,6 +31,11 @@ contract TradingAlgoAVS {
         uint256 risk
     );
 
+    event SubscribedToStrategy(
+        uint256 indexed strategyId,
+        address indexed subscriber
+    );
+
     function createStrategy(
         string memory _strategyUid,
         uint256 _subscriptionFee,
@@ -37,24 +44,12 @@ contract TradingAlgoAVS {
         uint256 _profitability,
         uint256 _risk
     ) public {
-        // ✅ Debug 1: 確認輸入參數
-        console.log("Creating strategy with UID: %s", _strategyUid);
-        console.log("Subscription Fee: %s", _subscriptionFee);
-        console.log("Subscription Period: %s", _subscriptionPeriod);
-        console.log("ROI: %s", _roi);
-        console.log("Profitability: %s", _profitability);
-        console.log("Risk: %s", _risk);
-        console.log("Sender Address: %s", msg.sender);
-
         require(
             keccak256(abi.encodePacked(_subscriptionPeriod)) == keccak256(abi.encodePacked("day")) ||
             keccak256(abi.encodePacked(_subscriptionPeriod)) == keccak256(abi.encodePacked("week")) ||
             keccak256(abi.encodePacked(_subscriptionPeriod)) == keccak256(abi.encodePacked("month")),
             "Invalid subscription period"
         );
-
-        // ✅ Debug 2: 進入策略存儲前
-        console.log("Passed subscription period validation");
 
         strategies[nextStrategyId] = Strategy(
             nextStrategyId,
@@ -65,11 +60,9 @@ contract TradingAlgoAVS {
             _roi,
             _profitability,
             _risk,
-            true
+            true,
+            0 // 訂閱人數從 0 開始
         );
-
-        // ✅ Debug 3: 存儲策略後，準備發送事件
-        console.log("Strategy stored with ID: %s", nextStrategyId);
 
         emit StrategyCreated(
             nextStrategyId,
@@ -82,9 +75,18 @@ contract TradingAlgoAVS {
             _risk
         );
 
-        // ✅ Debug 4: 策略成功建立
         console.log("Strategy creation completed!");
         nextStrategyId++; // 更新策略 ID
+    }
+
+    function subscribeToStrategy(uint256 _id) public {
+        require(strategies[_id].active, "Strategy is not active");
+        require(!subscriptions[_id][msg.sender], "Already subscribed");
+
+        subscriptions[_id][msg.sender] = true;
+        strategies[_id].subscriberCount++; // 增加訂閱人數
+
+        emit SubscribedToStrategy(_id, msg.sender);
     }
 
     function getStrategy(uint256 _id) public view returns (Strategy memory) {
@@ -96,6 +98,27 @@ contract TradingAlgoAVS {
         for (uint256 i = 0; i < nextStrategyId; i++) {
             allStrategies[i] = strategies[i];
         }
-    return allStrategies;
+        return allStrategies;
+    }
+
+    function getMyStrategies() public view returns (Strategy[] memory) {
+        uint256 count = 0;
+        // **Count strategies created by msg.sender**
+        for (uint256 i = 0; i < nextStrategyId; i++) {
+            if (strategies[i].provider == msg.sender) {
+                count++;
+            }
+        }
+
+        // **Create an array with the correct size**
+        Strategy[] memory myStrategies = new Strategy[](count);
+        uint256 index = 0;
+        for (uint256 i = 0; i < nextStrategyId; i++) {
+            if (strategies[i].provider == msg.sender) {
+                myStrategies[index] = strategies[i];
+                index++;
+            }
+        }
+        return myStrategies;
     }
 }
